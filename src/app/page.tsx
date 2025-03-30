@@ -38,12 +38,12 @@ export default function Home() {
     if (responseHistory.length > 0 || responseData) {
       nextStepData.visualContinuityContext = {
         firstSceneImagePrompt: responseHistory.length > 0 
-          ? responseHistory[0].toReturnItems.thisFrameImagePrompt 
-          : responseData?.toReturnItems.thisFrameImagePrompt,
+          ? responseHistory[0].toReturnItems.thisFrameImagePrompt! 
+          : responseData?.toReturnItems.thisFrameImagePrompt!,
         previousScenes: [
           ...(responseHistory.map(item => ({
-            imagePrompt: item.toReturnItems.thisFrameImagePrompt,
-            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt
+            imagePrompt: item.toReturnItems.thisFrameImagePrompt ?? "",
+            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt ?? ""
           }))),
           responseData ? {
             imagePrompt: responseData.toReturnItems.thisFrameImagePrompt,
