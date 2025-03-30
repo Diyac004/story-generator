@@ -327,6 +327,7 @@ export default function Home() {
                           // Reset response history when starting a new story
                           setResponseHistory([]);
 
+
                           await fetch("/api/startstory", {
                             method: "POST",
                             headers: {
@@ -341,6 +342,9 @@ export default function Home() {
                             .then((response) => response.json() as unknown as ResponseData)
                             .then((data) => {
                               console.log("Response data:", data);
+                              // pause audio
+                              bgAudio?.pause()
+                              setBgAudio(null)
                               // Store genres in the response data for future reference
                               data.genres = selectedGenres;
                               data.initialPrompt = prompt;

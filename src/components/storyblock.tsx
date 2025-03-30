@@ -213,6 +213,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       : "https://pageshots.supermemory.ai/Suzume%20no%20TojimariSuzumeTheme%20Song.mp3";
 
     if (!bgMusic) {
+
       const audio = new Audio(audioUrl);
       audio.loop = true;
       audio.volume = 0.3;
