@@ -294,6 +294,7 @@ export default function Home() {
             genres={storyGenres} // Pass the genres to maintain consistency
             initialPrompt={storyPrompt} // Pass the initial prompt
             storyArc={storyArc || undefined}
+            setStoryArc={setStoryArc}
           />
         </>
       )}

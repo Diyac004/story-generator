@@ -49,6 +49,7 @@ type StoryBlockProps = {
   genres: string[]; // Add genres prop
   initialPrompt?: string; // Add initial prompt prop
   storyArc?: string; // Add story arc prop
+  setStoryArc: (arc: string) => void; // Add setStoryArc prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -60,7 +61,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   currentImagePrompt,
   genres,
   initialPrompt,
-  storyArc
+  storyArc,
+  setStoryArc
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
@@ -238,7 +240,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         oldGeneratedImagePrompt: currentImagePrompt,
         // Include original story genres and prompt for continuity
         // genres: genres,
-        initialPrompt: initialPrompt,
+        initialPrompt: initialPrompt + " " + "The user clicked on " + buttons[index].stepButtonImagePrompt,
         // Pass the story history for better context
         storyHistory: responseHistory,
         storyArc: storyArc,
@@ -250,6 +252,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     // Maintain genre information
     nextStepData.genres = genres;
     nextStepData.initialPrompt = initialPrompt;
+
+    setStoryArc(nextStepData.storyArc || "");
     
     onStoryProgress(nextStepData);
   };

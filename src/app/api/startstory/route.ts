@@ -182,6 +182,9 @@ export async function POST(request: Request) {
     - Build upon previous choices without getting stuck
     
     ${avoidOptions}
+
+
+    You should always send 4 interesting options. ALWAYS.
     
     Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.
     
