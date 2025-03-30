@@ -10,6 +10,7 @@ export async function POST(request: Request) {
   let storyContext = "";
   let imageStyleGuidance = "";
   let storyArc = "";
+  let toneAccordingToGenres = "";
   
   // Check if the input contains genres (new story) or narratorPrompt (continuation)
   if ('genres' in inputData) {
@@ -19,6 +20,8 @@ export async function POST(request: Request) {
     
     // Create a style guide based on genres
     imageStyleGuidance = createStyleGuidance(genres);
+
+    toneAccordingToGenres = getToneFromGenres(genres);
     
     const imageObjects: FilePart[] =
       images?.map((image: string) => ({
@@ -284,6 +287,7 @@ export async function POST(request: Request) {
       base64Image,
       styleGuidance: imageStyleGuidance,
       storyArc: storyArc, // Pass the hidden story arc for continuity
+      toneAccordingToGenres
     }),
     {
       status: 200,
@@ -293,6 +297,38 @@ export async function POST(request: Request) {
     }
   );
 }
+
+const getToneFromGenres = (genres: string[]): string => {
+  // voice according to the genres
+  let tone = "";
+
+  if (genres.includes("Adventure")) {
+    tone += "Create an epic, expansive landscape with a sense of exploration and wonder. ";
+  }
+
+  if (genres.includes("Horror")) {
+    tone += "Use muted colors, shadows, and create an eerie, unsettling atmosphere while maintaining the Ghibli aesthetic. ";
+  }
+
+  if (genres.includes("Romance")) {
+    tone += "Include warm, soft lighting with delicate details and intimate framing. ";
+  }
+
+  if (genres.includes("Comedy")) {
+    tone += "Use bright, vibrant colors with exaggerated, playful expressions and visual humor. ";
+  }
+
+  if (genres.includes("Science Fiction")) {
+    tone += "Blend futuristic elements with organic shapes, unusual lighting, and fantastical technology. ";
+  }
+
+  if (genres.includes("Action")) {
+    tone += "Create dynamic composition with a sense of motion, energy and tension. ";
+  }
+
+  return tone;
+}
+
 
 // Helper function to create style guidance based on genres
 function createStyleGuidance(genres: string[]): string {

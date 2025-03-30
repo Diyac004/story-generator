@@ -10,7 +10,7 @@ const openai = new OpenAI({
 });
 
 export async function POST(request: Request) {
-  const { narratorPrompt, timestamp } = await request.json();
+  const { narratorPrompt, timestamp, tone } = await request.json();
   
   // Log the timestamp to see if it's being passed correctly
   console.log("TTS request with timestamp:", timestamp);
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
       model: "gpt-4o-mini-tts",
       voice: "coral",
       input: narratorPrompt,
-      instructions: "Speak in a cheerful and positive tone.",
+      instructions: tone ?? "Speak in a cheerful and positive tone.",
       // For example, you could set the format to "mp3" if needed.
       response_format: "mp3",
     });

@@ -19,6 +19,7 @@ export type ResponseData = {
       narratorPrompt: string;
     }[];
   };
+  toneAccordingToGenres?: string;
 }
 
 export type CachedNextFrame = {

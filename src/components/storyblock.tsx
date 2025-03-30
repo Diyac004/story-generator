@@ -105,6 +105,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         
         console.log("Sending TTS request with prompt:", narratorPrompt);
 
+        const tone = localStorage.getItem("tone");
+
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { 
@@ -114,7 +116,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
           },
           body: JSON.stringify({ 
             narratorPrompt,
-            timestamp // Use local timestamp
+            timestamp, // Use local timestamp
+            tone
           }),
         });
 
@@ -164,6 +167,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     
     try {
       stopNarration();
+
+      const tone = localStorage.getItem("tone");
       
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -174,7 +179,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         },
         body: JSON.stringify({ 
           narratorPrompt,
-          timestamp
+          timestamp,
+          tone
         }),
       });
 
