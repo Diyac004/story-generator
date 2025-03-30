@@ -320,9 +320,9 @@ export async function POST(request: Request): Promise<NextResponse> {
     - Avoid passive or "safe" options
     - Build upon previous choices without getting stuck
 
-    It should always be 4 options no matter what.
+    It should always be 4 distinct options no matter what.
     
-    ${avoidOptions}
+    these have already been asked, so no need to ask it again now. ${avoidOptions}
 
 
     You should always send 4 interesting options. ALWAYS.
