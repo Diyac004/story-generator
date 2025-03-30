@@ -44,8 +44,10 @@ type StoryBlockProps = {
   buttons: ButtonType[];
   narratorPrompt: string;
   onStoryProgress: (nextStepData: any) => void;
-  responseHistory: ResponseData[]
-  currentImagePrompt: string
+  responseHistory: ResponseData[];
+  currentImagePrompt: string;
+  genres: string[]; // Add genres prop
+  initialPrompt?: string; // Add initial prompt prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -55,6 +57,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   onStoryProgress,
   responseHistory,
   currentImagePrompt,
+  genres,
+  initialPrompt,
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
@@ -221,31 +225,29 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
 
   const handleButtonClick = async (index: number) => {
     setActiveButton(index);
-    // Additional logic on button click if needed
     const selectedPrompt = buttons[index].stepButtonImagePrompt;
-    const response = await fetch("/api/nextframe", {
+    
+    // For story continuation, we'll send narratorPrompt and the current image prompt
+    const response = await fetch("/api/startstory", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        input: [
-          ...responseHistory.map(item => ({
-            prompt: item.toReturnItems.thisFrameImagePrompt + " " + item.toReturnItems.thisFrameNarratorPrompt,
-            previousImagePrompt: item.toReturnItems.thisFrameImagePrompt,
-          })),
-          {
-            prompt: selectedPrompt,
-            previousImagePrompt: currentImagePrompt,
-          },
-        ],
-      } as {
-        input: {
-          prompt: string;
-          previousImagePrompt: string;
-        }[];
+        narratorPrompt: selectedPrompt + " " + `this is ${genres.join(", ")} genre.`,
+        oldGeneratedImagePrompt: currentImagePrompt,
+        // Include original story genres and prompt for continuity
+        // genres: genres,
+        initialPrompt: initialPrompt,
+        // Pass the story history for better context
+        storyHistory: responseHistory
       }),
     });
+    
     const nextStepData = await response.json();
-
+    
+    // Maintain genre information
+    nextStepData.genres = genres;
+    nextStepData.initialPrompt = initialPrompt;
+    
     onStoryProgress(nextStepData);
   };
 
@@ -359,6 +361,17 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         >
           {currentAudio ? "Pause Narration" : "Play Narration"}
         </button>
+      </div>
+
+      {/* Optional: Add a small indicator showing current story genres */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30">
+        <div className="px-3 py-1 rounded-full bg-white/30 backdrop-blur-md flex gap-1">
+          {genres.map((genre, idx) => (
+            <span key={idx} className="text-xs text-white font-medium">
+              {genre}{idx < genres.length - 1 ? " • " : ""}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

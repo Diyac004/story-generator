@@ -16,25 +16,47 @@ import horrorImg from "@/images/Horror.png";
 import romanceImg from "@/images/Romance.png";
 import { ResponseData } from "@/types";
 
-
-
 export default function Home() {
   const [images, setImages] = useState<string[] | null>(null);
   const [prompt, setPrompt] = useState("");
 
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [responseData, setResponseData] = useState<ResponseData>();
+  const [responseHistory, setResponseHistory] = useState<ResponseData[]>([]);
 
-const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
+  // Store initial genres to maintain story consistency
+  const [storyGenres, setStoryGenres] = useState<string[]>([]);
+  const [storyPrompt, setStoryPrompt] = useState<string>("");
 
   const handleStoryProgress = async (nextStepData: ResponseData) => {
-    // store the current state of the story in a list
-    setResponseHistory((prevHistory) => [...prevHistory, responseData!]);
+    // Store the current state of the story in a list, only if it exists
+    if (responseData) {
+      setResponseHistory((prevHistory) => [...prevHistory, responseData]);
+    }
 
+    // Add visual continuity metadata to help with consistency
+    if (responseHistory.length > 0 || responseData) {
+      nextStepData.visualContinuityContext = {
+        firstSceneImagePrompt: responseHistory.length > 0 
+          ? responseHistory[0].toReturnItems.thisFrameImagePrompt 
+          : responseData?.toReturnItems.thisFrameImagePrompt,
+        previousScenes: [
+          ...(responseHistory.map(item => ({
+            imagePrompt: item.toReturnItems.thisFrameImagePrompt,
+            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt
+          }))),
+          responseData ? {
+            imagePrompt: responseData.toReturnItems.thisFrameImagePrompt,
+            narratorPrompt: responseData.toReturnItems.thisFrameNarratorPrompt
+          } : null
+        ].filter(Boolean)
+      };
+    }
+    
     // replace the responseData
     setResponseData(nextStepData);
   };
-  
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -48,7 +70,6 @@ const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
       reader.readAsDataURL(file);
     }
   };
-
 
   useEffect(() => {
     console.log("Response data changed:", responseData);
@@ -219,6 +240,13 @@ const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
                       size="sm"
                       className="bg-white/80 absolute right-2 bottom-0"
                       onClick={async () => {
+                        // Save the initial genres and prompt for story continuity
+                        setStoryGenres(selectedGenres);
+                        setStoryPrompt(prompt);
+                        
+                        // Reset response history when starting a new story
+                        setResponseHistory([]);
+
                         await fetch("/api/startstory", {
                           method: "POST",
                           headers: {
@@ -233,6 +261,9 @@ const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
                           .then((response) => response.json())
                           .then((data) => {
                             console.log("Response data:", data);
+                            // Store genres in the response data for future reference
+                            data.genres = selectedGenres;
+                            data.initialPrompt = prompt;
                             setResponseData(data);
                             setImages(null);
                             setPrompt("");
@@ -258,6 +289,8 @@ const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
             onStoryProgress={handleStoryProgress}
             responseHistory={responseHistory}
             currentImagePrompt={responseData.toReturnItems.thisFrameImagePrompt}
+            genres={storyGenres} // Pass the genres to maintain consistency
+            initialPrompt={storyPrompt} // Pass the initial prompt
           />
         </>
       )}
