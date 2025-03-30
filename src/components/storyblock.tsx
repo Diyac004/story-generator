@@ -203,6 +203,54 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     }
   };
 
+  const [bgMusic, setBgMusic] = useState<HTMLAudioElement | null>(null);
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
+
+  // Handle background music based on genre
+  useEffect(() => {
+    const audioUrl = genres.some(genre => genre.toLowerCase() === 'horror') 
+      ? "https://recording.dhravya.dev/Creepy%20Ominous%20Horror%20Suspense%20Background%20(Scary%20Instrumental%20Music).mp3"
+      : "https://pageshots.supermemory.ai/Suzume%20no%20TojimariSuzumeTheme%20Song.mp3";
+
+    if (!bgMusic) {
+      const audio = new Audio(audioUrl);
+      audio.loop = true;
+      audio.volume = 0.3;
+      audio.muted = isMusicMuted;
+      setBgMusic(audio);
+      if (!isMusicMuted) {
+        audio.play().catch(console.error);
+      }
+    } else if (bgMusic.src !== audioUrl) {
+      // If genre changes, update the music
+      const wasPlaying = !bgMusic.paused && !isMusicMuted;
+      bgMusic.src = audioUrl;
+      if (wasPlaying) {
+        bgMusic.play().catch(console.error);
+      }
+    }
+
+    return () => {
+      if (bgMusic) {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        setBgMusic(null);
+      }
+    };
+  }, [genres, isMusicMuted]);
+
+  // Update music mute state
+  useEffect(() => {
+    if (bgMusic) {
+      bgMusic.muted = isMusicMuted;
+      if (!isMusicMuted) {
+        bgMusic.play().catch(console.error);
+      } else {
+        bgMusic.pause();
+      }
+    }
+  }, [isMusicMuted]);
+
   const selectedAnimation = animationVariants[animation];
 
   // Button animation variants
@@ -388,6 +436,16 @@ index}`}
           className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
         >
           {currentAudio ? "Pause Narration" : "Play Narration"}
+        </button>
+      </div>
+
+      {/* Add music controls */}
+      <div className="absolute top-16 right-4 z-30">
+        <button
+          onClick={() => setIsMusicMuted(!isMusicMuted)}
+          className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
+        >
+          {isMusicMuted ? "Play Music" : "Mute Music"}
         </button>
       </div>
 

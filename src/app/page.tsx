@@ -42,6 +42,7 @@ export default function Home() {
       setBgAudio(audio);
     }
 
+
     // Update mute state when it changes
     if (bgAudio) {
       bgAudio.muted = isMuted;
@@ -149,8 +150,7 @@ export default function Home() {
                     <Volume2 className="h-6 w-6 text-gray-800" />
                   )}
                 </Button>
-              </div>
-              <h1
+              </div>              <h1
                 className="drop-shadow-2xl font-bold text-white text-6xl mb-4"
                 style={{ fontFamily: "'Freckle Face', cursive" }}
               >
