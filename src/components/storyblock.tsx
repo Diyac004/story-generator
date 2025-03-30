@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import type React from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { ResponseData } from "@/types";
+import type { ResponseData } from "@/types";
 
 // Animation variants for the image
 const animationVariants = [
@@ -16,7 +17,7 @@ const animationVariants = [
     animate: { y: -10 },
     transition: {
       duration: 4,
-      repeat: Infinity,
+      repeat: Number.POSITIVE_INFINITY,
       repeatType: "reverse",
       ease: "easeInOut",
     },
@@ -27,7 +28,7 @@ const animationVariants = [
     animate: { opacity: 1, rotate: 1 },
     transition: {
       duration: 6,
-      repeat: Infinity,
+      repeat: Number.POSITIVE_INFINITY,
       repeatType: "reverse",
       ease: "easeInOut",
     },
@@ -43,11 +44,12 @@ type StoryBlockProps = {
   bgImageUrl: string;
   buttons: ButtonType[];
   narratorPrompt: string;
-  onStoryProgress: (nextStepData: any) => void;
+  onStoryProgress: (nextStepData: ResponseData) => void;
   responseHistory: ResponseData[];
   currentImagePrompt: string;
   genres: string[]; // Add genres prop
   initialPrompt?: string; // Add initial prompt prop
+  storyArc?: string; // Add story arc prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -59,6 +61,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   currentImagePrompt,
   genres,
   initialPrompt,
+  storyArc
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
@@ -75,6 +78,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     
     // Reset the played flag when bgImageUrl changes
     hasPlayedRef.current = false;
+    console.log(bgImageUrl)
   }, [bgImageUrl]);
 
   // Function to stop the current narration
@@ -87,7 +91,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   };
 
   // Automatically play narrator audio using the server-side API route
-  useEffect(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    useEffect(() => {
     // Only proceed if we have a narrator prompt and haven't played it yet
     if (!narratorPrompt || hasPlayedRef.current) return;
     
@@ -232,13 +237,14 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        narratorPrompt: selectedPrompt + " " + `this is ${genres.join(", ")} genre.`,
+        narratorPrompt: `${selectedPrompt} this is ${genres.join(", ")} genre.`,
         oldGeneratedImagePrompt: currentImagePrompt,
         // Include original story genres and prompt for continuity
         // genres: genres,
         initialPrompt: initialPrompt,
         // Pass the story history for better context
-        storyHistory: responseHistory
+        storyHistory: responseHistory,
+        storyArc
       }),
     });
     
@@ -318,7 +324,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       <div className="grid grid-cols-2 gap-4 mt-6 mb-6 absolute z-20 w-full max-w-lg px-4">
         {buttons.map((button, index) => (
           <motion.button
-            key={`btn-${index}`}
+            key={`btn-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+index}`}
             className={`text-white font-bold py-3 px-6 rounded-full border-2 ${
               activeButton === index
                 ? "backdrop-blur-lg bg-blue-600/20 border-blue-600/20"
@@ -355,6 +362,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
 
       {/* Add a play/pause button */}
       <div className="absolute top-4 right-4 z-30">
+        {/* biome-ignore lint/a11y/useButtonType: <explanation> */}
         <button
           onClick={currentAudio ? stopNarration : triggerNarration}
           className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
@@ -367,7 +375,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30">
         <div className="px-3 py-1 rounded-full bg-white/30 backdrop-blur-md flex gap-1">
           {genres.map((genre, idx) => (
-            <span key={idx} className="text-xs text-white font-medium">
+            <span key={genre} className="text-xs text-white font-medium">
               {genre}{idx < genres.length - 1 ? " • " : ""}
             </span>
           ))}

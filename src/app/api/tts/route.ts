@@ -1,7 +1,7 @@
 // src/app/api/tts/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
 import OpenAI from "openai";
 
 // Initialize the OpenAI client with your API key.

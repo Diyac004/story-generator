@@ -1,3 +1,14 @@
+export type StoryPhase = {
+  phase: "setup" | "risingAction" | "complication" | "climax" | "resolution";
+  description: string;
+  emotionalTone: string;
+};
+
+export type StoryArc = {
+  plotPoints: StoryPhase[];
+  estimatedSteps: number;
+};
+
 export type ResponseData = {
   toReturnItems: {
     thisFrameImagePrompt: string;
@@ -6,6 +17,9 @@ export type ResponseData = {
       stepButtonText: string;
       stepButtonImagePrompt: string;
     }[];
+    narrationStyle: {
+      instructions: string;
+    };
   };
   base64Image: string;
   selectedButtonText?: string;

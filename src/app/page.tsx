@@ -14,7 +14,7 @@ import actionImg from "@/images/Action.png";
 import sciFiImg from "@/images/SciFi.png";
 import horrorImg from "@/images/Horror.png";
 import romanceImg from "@/images/Romance.png";
-import { ResponseData } from "@/types";
+import type { ResponseData } from "@/types";
 
 export default function Home() {
   const [images, setImages] = useState<string[] | null>(null);
@@ -291,6 +291,7 @@ export default function Home() {
             currentImagePrompt={responseData.toReturnItems.thisFrameImagePrompt}
             genres={storyGenres} // Pass the genres to maintain consistency
             initialPrompt={storyPrompt} // Pass the initial prompt
+            storyArc={responseData.storyArc}
           />
         </>
       )}
