@@ -123,6 +123,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           The next steps should be impactful "actions" that significantly affect the story's direction. Each option should promise clear and different consequences.
           
           CRITICAL: Make each of the 4 options distinctly different and ensure they all drive the plot forward in meaningful ways. NO passive options.
+          BUT ALWAYS INCLUDE 4 OPTIONS. NO MATTER WHAT. 4 GOOD OPTIONS SHOULD ALWAY SBE THERE.
           
           The image prompt should be descriptive, detailed, and in the style of a Studio Ghibli film - dreamlike, imaginative, with rich colors and beautiful landscapes. The image MUST be in landscape (16:9) ratio.
           
