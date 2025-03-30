@@ -129,6 +129,10 @@ export async function POST(request: Request): Promise<NextResponse> {
           
           The next image prompts should maintain visual continuity with the first image while adapting to the new story direction.
           
+            You must generate the narratorprompt. always.
+
+            never include the studio ghibili  16:9 stuff in the narrator prompt
+
           HIDDEN STORY ARC (never reveal this to the user, but use it to inform the story direction):
           ${storyArc}
           
@@ -229,19 +233,51 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Generate the next part of the story
     const result = await generateText({
       model: google("gemini-2.0-flash-001"),
-      messages: messages,
+      messages: [
+        ...messages,
+        {
+          role: "user" as const,
+          content: `You are crafting the next scene in an immersive story. Follow these critical rules:
+
+1. NARRATOR PROMPT:
+- Create a vivid, atmospheric description that heightens tension
+- Focus on immediate sensory details and emotional impact
+- Keep the tone ${currentPhase.emotionalTone} as per the current story phase
+- Length: 2-3 impactful sentences maximum
+
+2. ACTION CHOICES:
+- EXACTLY 4 distinct options - no exceptions
+- Each must be an active choice with clear consequences
+- Make choices dramatically different from each other
+- Ensure each choice aligns with the current story phase: ${currentPhase.description}
+- NO passive or investigative options - focus on decisive actions
+
+3. IMAGE PROMPTS:
+- Maintain visual continuity with previous scenes
+- Focus on the most dramatic or tense element of each scene
+- Keep consistent atmosphere while varying the scenes
+
+Previous context to maintain continuity:
+${storyContext}
+
+Story phase guidance (never reveal to user):
+${currentPhase.description}
+
+${avoidOptions ? `\nAvoid these previous options:\n${avoidOptions}` : ''}`
+        }
+      ],
       toolChoice: "required",
       tools: {
         nextSteps: {
           type: "function",
-          description: "The next 4 options for the story",
+          description: "Generate the next story scene with exactly 4 impactful choices",
           parameters: z.object({
             thisFrameImagePrompt: z.string(),
             thisFrameNarratorPrompt: z.string(),
             nextOptions: z.array(z.object({
               stepButtonText: z.string(),
               stepButtonImagePrompt: z.string(),
-            })),
+            })).length(4),
           }),
         }
       },
@@ -301,40 +337,40 @@ export async function POST(request: Request): Promise<NextResponse> {
       content: [
         {
           type: "text",
-          text: `Continue the adventure with immediate forward momentum. Create a concise but impactful next chapter that advances the plot significantly. You MUST run the 'nextSteps' tool.
-    
-    ${storyContext}
-    
-    ${initialPrompt ? `Remember that this adventure revolves around: ${initialPrompt}` : ''}
-    ${genres ? `Maintain the tone and elements appropriate for these genres: ${genres.join(', ')}` : ''}
-    
-    CRITICAL GUIDELINES:
-    - Keep narration tight and focused on action/consequences
-    - Each scene must meaningfully progress the plot
-    - Avoid repetitive scenarios or circular choices
-    - Present clear stakes and tension in every scene
-    - Make every choice feel impactful and distinct
-    
-    Present four dramatically different options that will significantly change the story's direction. Each choice should:
-    - Have clear and different consequences
-    - Move the plot forward in a unique way
+          text: `You are continuing a horror story. Here is the current state:
+            
+            Current image description: ${inputData.oldGeneratedImagePrompt}
+            Current narrator text: ${inputData.narratorPrompt}
+            Initial prompt: ${inputData.initialPrompt}
+            
+            HIDDEN STORY ARC (never reveal this to the user, but use it to inform the story direction):
+            ${inputData.storyArc}
+
+            Create the next scene of this story. You must:
+            1. Generate a vivid narrator prompt that describes what happens next in a suspenseful, atmospheric way
+            2. Create 4 distinct choices for what the protagonist could do next
+            3. For each choice, create a matching image prompt that maintains visual continuity
+            
+            Your response must follow this exact format:
+            1. A narrator prompt that builds tension and atmosphere
+            2. Exactly 4 distinct action choices that meaningfully impact the story
+            3. Each choice must have a matching image prompt that maintains visual continuity
+            
+            Remember:
+    - Keep the horror atmosphere consistent
+    - Make each option distinctly different 
     - Avoid passive or "safe" options
     - Build upon previous choices without getting stuck
-
+    - Move the plot forward in unique ways
+    
     It should always be 4 distinct options no matter what.
     
     these have already been asked, so no need to ask it again now. ${avoidOptions}
 
-
+    never include the studio ghibili  16:9 stuff in the narrator prompt
     You should always send 4 interesting options. ALWAYS.
     
-    Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.
-    
-    Keep narrator prompts concise (tweet-length) yet immersive, focusing on action and stakes rather than description.
-    
-    HIDDEN STORY ARC (never reveal this to the user, but use it to guide the story direction):
-    ${existingStoryArc || "Generate the story arc"}
-    `
+    Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.`
         }
       ]
     });
