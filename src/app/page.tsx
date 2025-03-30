@@ -23,11 +23,14 @@ export default function Home() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [responseData, setResponseData] = useState<ResponseData>();
   const [responseHistory, setResponseHistory] = useState<ResponseData[]>([]);
+  const [storyArc, setStoryArc] = useState<string | null>(null);
 
   // Store initial genres to maintain story consistency
   const [storyGenres, setStoryGenres] = useState<string[]>([]);
   const [storyPrompt, setStoryPrompt] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
+  // Store visual continuity metadata to help with consistency
   const handleStoryProgress = async (nextStepData: ResponseData) => {
     // Store the current state of the story in a list, only if it exists
     if (responseData) {
@@ -42,14 +45,14 @@ export default function Home() {
           : responseData?.toReturnItems.thisFrameImagePrompt!,
         previousScenes: [
           ...(responseHistory.map(item => ({
-            imagePrompt: item.toReturnItems.thisFrameImagePrompt ?? "",
-            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt ?? ""
+            imagePrompt: item.toReturnItems.thisFrameImagePrompt!,
+            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt!
           }))),
-          responseData ? {
+          responseData && {
             imagePrompt: responseData.toReturnItems.thisFrameImagePrompt,
             narratorPrompt: responseData.toReturnItems.thisFrameNarratorPrompt
-          } : null
-        ].filter(Boolean)
+          }
+        ].filter(Boolean) as { imagePrompt: string; narratorPrompt: string; }[]
       };
     }
     
@@ -240,39 +243,45 @@ export default function Home() {
                       size="sm"
                       className="bg-white/80 absolute right-2 bottom-0"
                       onClick={async () => {
-                        // Save the initial genres and prompt for story continuity
-                        setStoryGenres(selectedGenres);
-                        setStoryPrompt(prompt);
-                        
-                        // Reset response history when starting a new story
-                        setResponseHistory([]);
+                        setIsGenerating(true);
+                        try {
+                          // Save the initial genres and prompt for story continuity
+                          setStoryGenres(selectedGenres);
+                          setStoryPrompt(prompt);
+                          
+                          // Reset response history when starting a new story
+                          setResponseHistory([]);
 
-                        await fetch("/api/startstory", {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({
-                            images,
-                            prompt,
-                            genres: selectedGenres,
-                          }),
-                        })
-                          .then((response) => response.json())
-                          .then((data) => {
-                            console.log("Response data:", data);
-                            // Store genres in the response data for future reference
-                            data.genres = selectedGenres;
-                            data.initialPrompt = prompt;
-                            setResponseData(data);
-                            setImages(null);
-                            setPrompt("");
-                            setSelectedGenres([]);
-                          });
+                          await fetch("/api/startstory", {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                            },
+                            body: JSON.stringify({
+                              images,
+                              prompt,
+                              genres: selectedGenres,
+                            }),
+                          })
+                            .then((response) => response.json() as unknown as ResponseData)
+                            .then((data) => {
+                              console.log("Response data:", data);
+                              // Store genres in the response data for future reference
+                              data.genres = selectedGenres;
+                              data.initialPrompt = prompt;
+                              setResponseData(data);
+                              setImages(null);
+                              setPrompt("");
+                              setSelectedGenres([]);
+                              setStoryArc(data.storyArc || null)
+                            });
+                        } finally {
+                          setIsGenerating(false);
+                        }
                       }}
-                      disabled={!selectedGenres.length}
+                      disabled={!selectedGenres.length || isGenerating}
                     >
-                      Generate Story
+                      {isGenerating ? "Generating..." : "Generate Story"}
                     </Button>
                   </div>
                 </div>
@@ -291,7 +300,8 @@ export default function Home() {
             currentImagePrompt={responseData.toReturnItems.thisFrameImagePrompt}
             genres={storyGenres} // Pass the genres to maintain consistency
             initialPrompt={storyPrompt} // Pass the initial prompt
-            storyArc={responseData.storyArc}
+            storyArc={storyArc || undefined}
+            setStoryArc={setStoryArc}
           />
         </>
       )}

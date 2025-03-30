@@ -50,6 +50,7 @@ type StoryBlockProps = {
   genres: string[]; // Add genres prop
   initialPrompt?: string; // Add initial prompt prop
   storyArc?: string; // Add story arc prop
+  setStoryArc: (arc: string) => void; // Add setStoryArc prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -61,11 +62,13 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   currentImagePrompt,
   genres,
   initialPrompt,
-  storyArc
+  storyArc,
+  setStoryArc
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isProgressing, setIsProgressing] = useState<number | null>(null);
   // Remove audioKey from state since it's causing the loop
   
   // Add ref to track if narration has been played
@@ -229,32 +232,41 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   };
 
   const handleButtonClick = async (index: number) => {
+    if (isProgressing !== null) return; // Prevent multiple clicks while loading
+    
     setActiveButton(index);
-    const selectedPrompt = buttons[index].stepButtonImagePrompt;
+    setIsProgressing(index);
     
-    // For story continuation, we'll send narratorPrompt and the current image prompt
-    const response = await fetch("/api/startstory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        narratorPrompt: `${selectedPrompt} this is ${genres.join(", ")} genre.`,
-        oldGeneratedImagePrompt: currentImagePrompt,
-        // Include original story genres and prompt for continuity
-        // genres: genres,
-        initialPrompt: initialPrompt,
-        // Pass the story history for better context
-        storyHistory: responseHistory,
-        storyArc
-      }),
-    });
-    
-    const nextStepData = await response.json();
-    
-    // Maintain genre information
-    nextStepData.genres = genres;
-    nextStepData.initialPrompt = initialPrompt;
-    
-    onStoryProgress(nextStepData);
+    try {
+      const selectedPrompt = buttons[index].stepButtonImagePrompt;
+      
+      // For story continuation, we'll send narratorPrompt and the current image prompt
+      const response = await fetch("/api/startstory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          narratorPrompt: selectedPrompt + " " + `this is ${genres.join(", ")} genre.`,
+          oldGeneratedImagePrompt: currentImagePrompt,
+          initialPrompt: initialPrompt + " " + "The user clicked on " + buttons[index].stepButtonImagePrompt,
+          storyHistory: responseHistory,
+          storyArc: storyArc,
+        }),
+      });
+      
+      const nextStepData = await response.json();
+      
+      // Maintain genre information
+      nextStepData.genres = genres;
+      nextStepData.initialPrompt = initialPrompt;
+
+      setStoryArc(nextStepData.storyArc || "");
+      
+      onStoryProgress(nextStepData);
+    } catch (error) {
+      console.error("Error progressing story:", error);
+    } finally {
+      setIsProgressing(null);
+    }
   };
 
   return (
@@ -304,7 +316,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
 
       {/* Narrator prompt with glass morphism styling */}
       <div
-        className="absolute top-4 left-4 p-4 rounded-md shadow-lg max-w-xs z-20"
+        className="absolute top-4 left-[11%] p-4 rounded-md shadow-lg max-w-[80vw] -translate-x-1/2 z-20"
         style={{
           background: "rgba(0, 0, 0, 0.5)",
           backdropFilter: "blur(10px)",
@@ -321,7 +333,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       </div>
 
       {/* Interactive buttons */}
-      <div className="grid grid-cols-2 gap-4 mt-6 mb-6 absolute z-20 w-full max-w-lg px-4">
+      <div className="grid grid-cols-4 gap-4 mt-6 mb-6 absolute z-20 w-full px-4">
         {buttons.map((button, index) => (
           <motion.button
             key={`btn-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
@@ -339,13 +351,15 @@ index}`}
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
               border: "1px solid rgba(59, 130, 246, 0.3)",
+              cursor: isProgressing !== null ? "not-allowed" : "pointer",
             }}
             variants={buttonVariants}
             initial="initial"
-            whileHover="hover"
-            whileTap="tap"
+            whileHover={isProgressing === null ? "hover" : "initial"}
+            whileTap={isProgressing === null ? "tap" : "initial"}
             animate={activeButton === index ? "active" : "initial"}
             onClick={() => handleButtonClick(index)}
+            disabled={isProgressing !== null}
           >
             <motion.span
               initial={{ opacity: 0.9 }}
@@ -354,7 +368,7 @@ index}`}
               className="font-bold text-base md:text-lg tracking-tight leading-tight"
               style={{ fontFamily: "'Comic Neue', cursive" }}
             >
-              {button.stepButtonText}
+              {isProgressing === index ? "Loading..." : button.stepButtonText}
             </motion.span>
           </motion.button>
         ))}
