@@ -2,7 +2,7 @@ import { google } from "@ai-sdk/google";
 import type { CoreMessage, FilePart } from "ai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import type { ResponseData, StoryArc, StoryPhase } from "@/types";
+import type { StoryArc, StoryPhase } from "@/types";
 import { z } from "zod";
 
 type NextStepsResponse = {
