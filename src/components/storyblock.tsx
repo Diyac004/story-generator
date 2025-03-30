@@ -294,6 +294,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     
     try {
       const selectedPrompt = buttons[index].stepButtonImagePrompt;
+
+      const stArc = storyArc?.length ? storyArc : window.localStorage.getItem("storyArc")
       
       // For story continuation, we'll send narratorPrompt and the current image prompt
       const response = await fetch("/api/startstory", {
@@ -304,7 +306,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
           oldGeneratedImagePrompt: currentImagePrompt,
           initialPrompt: initialPrompt + " " + "The user clicked on " + buttons[index].stepButtonImagePrompt,
           storyHistory: responseHistory,
-          storyArc: storyArc,
+          storyArc: stArc,
         }),
       });
       

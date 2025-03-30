@@ -353,6 +353,9 @@ export default function Home() {
                               setPrompt("");
                               setSelectedGenres([]);
                               setStoryArc(data.storyArc || null)
+                              if (data.storyArc) {
+                                window.localStorage.setItem("storyArc", data.storyArc)
+                              }
                               setTone(data.toneAccordingToGenres || "");
                             });
                         } finally {
