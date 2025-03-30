@@ -54,17 +54,17 @@ export async function POST(request: Request) {
       content: [
         {
           type: "text",
-          text: `Create an immersive introduction for a story based on the selected genres: ${genres.join(
+          text: `Create an immersive but concise introduction for a story based on the selected genres: ${genres.join(
             ", "
-          )}. The introduction should capture the reader's imagination and set up a scenario where the reader becomes the protagonist.
+          )}. Immediately establish an engaging scenario with clear stakes where the reader becomes the protagonist.
           
-          Make the story vivid, emotionally engaging, and create a sense of intrigue or mystery. Include sensory details and establish a unique atmosphere.
+          Focus on action and forward momentum. Avoid lengthy descriptions - use vivid but efficient language to set the scene. Create immediate tension or intrigue that demands action.
           
           You should also create a prompt for the image generation model. You MUST run the 'nextSteps' tool.
           
-          The next steps should be "actions" that the reader (as the protagonist) can take. The story should place the reader in an interesting situation with meaningful choices.
+          The next steps should be impactful "actions" that significantly affect the story's direction. Each option should promise clear and different consequences.
           
-          IMPORTANT: Make sure each of the 4 options is distinctly different and represents a meaningful choice.
+          CRITICAL: Make each of the 4 options distinctly different and ensure they all drive the plot forward in meaningful ways. NO passive options.
           
           The image prompt should be descriptive, detailed, and in the style of a Studio Ghibli film - dreamlike, imaginative, with rich colors and beautiful landscapes. The image MUST be in landscape (16:9) ratio.
           
@@ -161,20 +161,31 @@ export async function POST(request: Request) {
       content: [
         {
           type: "text",
-          text: `Continue the adventure from where we left off. Create the next exciting chapter of the narrative that logically builds on previous events. You MUST run the 'nextSteps' tool.
+          text: `Continue the adventure with immediate forward momentum. Create a concise but impactful next chapter that advances the plot significantly. You MUST run the 'nextSteps' tool.
     
     ${storyContext}
     
     ${initialPrompt ? `Remember that this adventure revolves around: ${initialPrompt}` : ''}
     ${genres ? `Maintain the tone and elements appropriate for these genres: ${genres.join(', ')}` : ''}
     
-    Craft an engaging, fast-paced continuation that moves the plot forward with minimal repetition. Present four distinct and fresh choices for the protagonist—each option should open a unique path and propel the story into new directions.
+    CRITICAL GUIDELINES:
+    - Keep narration tight and focused on action/consequences
+    - Each scene must meaningfully progress the plot
+    - Avoid repetitive scenarios or circular choices
+    - Present clear stakes and tension in every scene
+    - Make every choice feel impactful and distinct
+    
+    Present four dramatically different options that will significantly change the story's direction. Each choice should:
+    - Have clear and different consequences
+    - Move the plot forward in a unique way
+    - Avoid passive or "safe" options
+    - Build upon previous choices without getting stuck
     
     ${avoidOptions}
     
     Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.
     
-    Keep narrator prompts concise (tweet-length) yet immersive.
+    Keep narrator prompts concise (tweet-length) yet immersive, focusing on action and stakes rather than description.
     
     HIDDEN STORY ARC (never reveal this to the user, but use it to guide the story direction):
     ${storyArc || "Generate the story arc"}
