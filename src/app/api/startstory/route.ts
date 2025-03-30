@@ -452,6 +452,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     base64Image,
     styleGuidance: imageStyleGuidance,
     storyArc: storyArc, // Pass the hidden story arc for continuity
+    toneAccordingToGenres
   }, {
     status: 200,
     headers: {
@@ -463,28 +464,31 @@ export async function POST(request: Request): Promise<NextResponse> {
 const getToneFromGenres = (genres: string[]): string => {
   // voice according to the genres
   let tone = "";
+  
+  // Convert genres to lowercase for case-insensitive matching
+  const lowerGenres = genres.map(g => g.toLowerCase());
 
-  if (genres.includes("Adventure")) {
+  if (lowerGenres.includes("adventure")) {
     tone += "Create an epic, expansive landscape with a sense of exploration and wonder. ";
   }
 
-  if (genres.includes("Horror")) {
+  if (lowerGenres.includes("horror")) {
     tone += "Use muted colors, shadows, and create an eerie, unsettling atmosphere while maintaining the Ghibli aesthetic. ";
   }
 
-  if (genres.includes("Romance")) {
+  if (lowerGenres.includes("romance")) {
     tone += "Include warm, soft lighting with delicate details and intimate framing. ";
   }
 
-  if (genres.includes("Comedy")) {
+  if (lowerGenres.includes("comedy")) {
     tone += "Use bright, vibrant colors with exaggerated, playful expressions and visual humor. ";
   }
 
-  if (genres.includes("Science Fiction")) {
+  if (lowerGenres.includes("science fiction")) {
     tone += "Blend futuristic elements with organic shapes, unusual lighting, and fantastical technology. ";
   }
 
-  if (genres.includes("Action")) {
+  if (lowerGenres.includes("action")) {
     tone += "Create dynamic composition with a sense of motion, energy and tension. ";
   }
 
