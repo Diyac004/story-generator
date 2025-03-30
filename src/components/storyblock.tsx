@@ -216,7 +216,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
 
       const audio = new Audio(audioUrl);
       audio.loop = true;
-      audio.volume = 0.3;
+      audio.volume = 0.6;
       audio.muted = isMusicMuted;
       setBgMusic(audio);
       if (!isMusicMuted) {
