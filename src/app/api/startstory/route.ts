@@ -18,53 +18,56 @@ export async function POST(request: Request) {
       mimeType: "image/jpeg",
     })) || [];
 
-  const result = await generateText({
+const result = await generateText({
     model: google("gemini-2.0-flash-001"),
 
     messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Create a introduction for a story(the introduction should be such that the user can create a plot) based on the selected genres: ${genres.join(
-              ", "
-            )}. You should also create a prompt for the image generation model. You MUST run the 'nextSteps' tool
-            
-            The next steps should be an "action" - that the user (watching the story) can take. So, the story you form should be a hook, or a difficult/good/interesting situation in which the user is. 
-            
-            The first part should be very engaging, and the image prompt should be descriptive, cartoonish / dreamy and in the style of a very well designed Ghibili studio like image. The image should always be landscape (16:9) ratio. ALWAYS CREATE A LANDSCAPE IMAGE.
-            
-            ${prompt ? `The user also wishes the story to be around this: ${prompt}` : ""}`,
-          },
-          ...imageObjects,
-        ],
-      },
+        {
+            role: "user",
+            content: [
+                {
+                    type: "text",
+                    text: `Create a introduction for a story(the introduction should be such that the user can create a plot) based on the selected genres: ${genres.join(
+                        ", "
+                    )}. You should also create a prompt for the image generation model. You MUST run the 'nextSteps' tool
+                    
+                    The next steps should be an "action" - that the user (watching the story) can take. So, the story you form should be a hook, or a difficult/good/interesting situation in which the user is. 
+                    
+                    The first part should be very engaging, and the image prompt should be descriptive, cartoonish / dreamy and in the style of a very well designed Ghibili studio like image. The image should always be landscape (16:9) ratio. ALWAYS CREATE A LANDSCAPE IMAGE. Make sure the image prompts are vivid, detailed, and captivating.
+                    
+                    The next imageprompts should be descriptive, and try to preserve as much detail as possible about the first prompt.
+                    ${prompt ? `The user also wishes the story to be around this: ${prompt}` : ""}`,
+                },
+                ...imageObjects,
+            ],
+        },
     ],
     toolChoice: "required",
     tools: {
-      nextSteps: {
-        type: "function",
-        description: "The next 4 options for the story",
-        parameters: z.object({
-          thisFrameImagePrompt: z
-            .string()
-            .describe("The image prompt for the first image"),
-        thisFrameNarratorPrompt: z
-            .string()
-            .describe("The narrator prompt for the first image"),
-          nextOptions: z
-            .array(
-              z.object({
-                stepButtonText: z.string(),
-                stepButtonImagePrompt: z.string(),
-              })
-            )
-            .describe("The next 4 options for the story"),
-        }),
-      },
+        nextSteps: {
+            type: "function",
+            description: "The next 4 options for the story",
+            parameters: z.object({
+                thisFrameImagePrompt: z
+                    .string()
+                    .describe("The image prompt for the first image"),
+            thisFrameNarratorPrompt: z
+                    .string()
+                    .describe("The narrator prompt for the first image"),
+                nextOptions: z
+                    .array(
+                        z.object({
+                            stepButtonText: z.string(),
+                            stepButtonImagePrompt: z
+                                .string()
+                                .describe("A vivid and captivating image prompt for the next step"),
+                        })
+                    )
+                    .describe("The next 4 options for the story"),
+            }),
+        },
     },
-  });
+});
 
   let imagePrompt = "";
 

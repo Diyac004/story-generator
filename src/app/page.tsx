@@ -115,12 +115,12 @@ export default function Home() {
                     style={{ fontFamily: "'Freckle Face', cursive" }}>
                       Upload an Image
                     </h2>
-                    <p className="text-sm text-gray-500"
+                    <p className="text-sm text-black-500"
                     >
                       Upload an image to inspire your story
                     </p>
 
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-purple-200 rounded-lg p-6 h-48 relative">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg p-6 h-48 relative bg-black/10 ">
                       {images ? (
                         <>
                           {images.map((image, index) => (
@@ -142,7 +142,7 @@ export default function Home() {
                       ) : (
                         <label className="flex flex-col items-center justify-center cursor-pointer w-full h-full">
                           <Upload className="h-10 w-10 text-grey-400 mb-2" />
-                          <span className="text-sm text-gray-500">
+                          <span className="text-sm text-black-500">
                             Click to upload
                           </span>
                           <Input
@@ -156,9 +156,8 @@ export default function Home() {
                     </div>
                     <label
                       htmlFor="image-upload"
-                      className="absolute bottom-0 right-24 bg-white/80"
                     >
-                      <Button type="button" variant="outline" size="sm">
+                      <Button  className="absolute bottom-0 right-24 bg-white/80" type="button" variant="outline" size="sm">
                         <Input
                           id="image-upload"
                           type="file"
@@ -186,12 +185,12 @@ export default function Home() {
                     style={{ fontFamily: "'Freckle Face', cursive" }}>
                       Or Enter a Prompt
                     </h2>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-black-500">
                       Describe the story you want to create
                     </p>
                     <Textarea
                       placeholder="A brave explorer discovers a hidden temple in the jungle..."
-                      className="h-48 resize-none border-2 border-grey-200"
+                      className="h-48 resize-none border-2 border-gray-200 bg-black/10 placeholder:text-gray-500"
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
                     />
@@ -201,16 +200,16 @@ export default function Home() {
                       size="sm"
                       className="bg-white/80 absolute right-2 bottom-0"
                       onClick={async () => {
-                        await fetch("/response.json", {
-                          method: "GET",
+                        await fetch("/api/startstory", {
+                          method: "POST",
                           headers: {
                             "Content-Type": "application/json",
                           },
-                          // body: JSON.stringify({
-                          //   images,
-                          //   prompt,
-                          //   genres: selectedGenres,
-                          // }),
+                          body: JSON.stringify({
+                            images,
+                            prompt,
+                            genres: selectedGenres,
+                          }),
                         })
                           .then((response) => response.json())
                           .then((data) => {

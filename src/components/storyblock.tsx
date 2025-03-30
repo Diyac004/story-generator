@@ -91,7 +91,7 @@ function StoryBlock({
         height: "100vh",
         overflow: "hidden",
       }}
-      className="flex flex-col items-center justify-end min-h-screen font-sans"
+      className="flex flex-col items-center justify-end min-h-screen font-sans pt-3"
     >
       {/* Blurred background image */}
       <div 
@@ -143,33 +143,44 @@ function StoryBlock({
     </div>
       
       {/* Buttons with enhanced UI, animations and h1-like font styling */}
-      <div className="grid grid-cols-2 gap-6 mt-6 mb-6 relative z-20 w-full max-w-lg px-4">
-        {buttons.map((button, index) => (
-          <motion.button
-            key={`btn-${index}`}
-            className={`text-white font-bold py-3 px-6 rounded-full border-2 ${
-              activeButton === index 
-              ? "bg-blue-600 border-blue-700" 
-              : "bg-blue-500 border-blue-500 hover:bg-blue-600"
-            }`}
-            variants={buttonVariants}
-            initial="initial"
-            whileHover="hover"
-            whileTap="tap"
-            animate={activeButton === index ? "active" : "initial"}
-            onClick={() => handleButtonClick(index)}
-          >
-            <motion.span
-              initial={{ opacity: 0.9 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="font-bold text-base md:text-lg tracking-tight leading-tight"
-            >
-              {button.stepButtonText}
-            </motion.span>
-          </motion.button>
-        ))}
-      </div>
+    <div className="grid grid-cols-2 gap-4 mt-6 mb-6 absolute z-20 w-full max-w-lg px-4">
+      {buttons.map((button, index) => (
+        <motion.button
+        key={`btn-${index}`}
+        className={`text-white font-bold py-3 px-6 rounded-full border-2 ${
+          activeButton === index 
+          ? "backdrop-blur-lg bg-blue-600/20 border-blue-600/20" 
+          : "bg-blue-500/20 border-blue-500/20 hover:bg-blue-600/20"
+        }`}
+        style={{
+          background: activeButton === index 
+            ? "rgba(59, 130, 246, 0.2)" 
+            : "rgba(59, 130, 246, 0.1)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          border: "1px solid rgba(59, 130, 246, 0.3)",
+        }}
+        variants={buttonVariants}
+        initial="initial"
+        whileHover="hover"
+        whileTap="tap"
+        animate={activeButton === index ? "active" : "initial"}
+        onClick={() => handleButtonClick(index)}
+        >
+        <motion.span
+          initial={{ opacity: 0.9 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="font-bold text-base md:text-lg tracking-tight leading-tight"
+          style={{
+            fontFamily: "'Comic Neue', cursive", // Added Comic Neue font style
+          }}
+        >
+          {button.stepButtonText}
+        </motion.span>
+        </motion.button>
+      ))}
+    </div>
     </div>
   );
 }
