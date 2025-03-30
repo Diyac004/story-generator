@@ -1,21 +1,56 @@
 import { google } from "@ai-sdk/google";
-import { CoreMessage, FilePart, generateText } from "ai";
-import fs from "fs";
+import type { CoreMessage, FilePart } from "ai";
+import { generateText } from "ai";
+import { NextResponse } from "next/server";
+import type { ResponseData, StoryArc, StoryPhase } from "@/types";
 import { z } from "zod";
 
-export async function POST(request: Request) {
-  const inputData = await request.json();
+type NextStepsResponse = {
+  thisFrameImagePrompt: string;
+  thisFrameNarratorPrompt: string;
+  nextOptions: {
+    stepButtonText: string;
+    stepButtonImagePrompt: string;
+  }[];
+};
+
+type ToolCallResponse = {
+  toolName: string;
+  args: NextStepsResponse;
+};
+
+type InputData = {
+  genres?: string[];
+  narratorPrompt?: string;
+  oldGeneratedImagePrompt?: string;
+  initialPrompt?: string;
+  storyHistory?: {
+    selectedButtonText: string;
+    narratorPrompt: string;
+  }[];
+  selectedButtonText?: string;
+  previousOptions?: string[];
+  storyArc?: string;
+  images?: string[];
+  prompt?: string;
+};
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const inputData = await request.json() as InputData;
   
-  let messages = [];
+  const messages: CoreMessage[] = [];
   let storyContext = "";
   let imageStyleGuidance = "";
   let storyArc = "";
+  let currentEmotionalTone = "neutral"; // Default tone
+  let toReturnItems: NextStepsResponse | null = null;
+  let base64Image = "";
   let toneAccordingToGenres = "";
   
   // Check if the input contains genres (new story) or narratorPrompt (continuation)
-  if ('genres' in inputData) {
+  if ('genres' in inputData && inputData.genres) {
     // This is a new story
-    const { images, prompt, genres } = inputData;
+    const { images = [], prompt = "", genres } = inputData;
     console.log("Received new story data:", { images, prompt, genres });
     
     // Create a style guide based on genres
@@ -38,18 +73,38 @@ export async function POST(request: Request) {
         content: [
           {
             type: "text",
-            text: `Create a brief outline for a ${genres.join(", ")} story. 
-            This outline is for internal use only and will never be shown to the user. 
-            Include major plot points, character development arcs, and a satisfying conclusion.
-            ${prompt ? `The story should be about: ${prompt}` : ""}
-            Keep it under 500 words.`
+            text: `Create a structured story arc with exactly 5 major plot points for a ${genres.join(", ")} story. It must be 8-12 steps long.`
           },
           ...imageObjects
         ]
-      }]
+      }],
+      toolChoice: "required",
+      tools: {
+        storyArc: {
+          type: "function",
+          description: "Create a structured story arc with 5 major plot points",
+          parameters: z.object({
+            plotPoints: z.array(
+              z.object({
+                phase: z.enum(["setup", "risingAction", "complication", "climax", "resolution"]),
+                description: z.string().describe("Description of this story phase"),
+                emotionalTone: z.string().describe("The emotional tone for this phase (e.g. mysterious, tense, joyful)")
+              })
+            ).length(5),
+            estimatedSteps: z.number().min(8).max(12).describe("Estimated number of steps to complete the story")
+          }).describe(prompt ? `Create a story arc about: ${prompt}` : "Create an engaging story arc")
+        }
+      }
     });
-    
-    storyArc = storyArcResult.text;
+
+    if (!storyArcResult.toolCalls?.length) {
+      return NextResponse.json({
+        error: "Failed to generate story arc"
+      }, { status: 500 });
+    }
+
+    const storyArcData = storyArcResult.toolCalls[0].args
+    storyArc = JSON.stringify(storyArcData);
     console.log("Generated story arc:", storyArc);
       
     messages.push({
@@ -91,26 +146,38 @@ export async function POST(request: Request) {
       storyHistory,
       selectedButtonText,
       previousOptions,
-      storyArc
+      storyArc: existingStoryArc
     } = inputData;
     
-    console.log("Received continuation data:", { narratorPrompt, oldGeneratedImagePrompt });
+    // Parse story arc and determine current phase
+    if (!existingStoryArc) {
+      return NextResponse.json({
+        error: "Missing story arc"
+      }, { status: 400 });
+    }
+    
+    const storyArcData: StoryArc = JSON.parse(existingStoryArc);
+    const currentStep = storyHistory?.length ?? 0 + 1;
+    const totalSteps = storyArcData.estimatedSteps;
+    const progress = currentStep / totalSteps;
+    
+    // Determine current story phase and emotional tone
+    const currentPhase: StoryPhase = (() => {
+      if (progress <= 0.2) return storyArcData.plotPoints[0];
+      if (progress <= 0.4) return storyArcData.plotPoints[1];
+      if (progress <= 0.6) return storyArcData.plotPoints[2];
+      if (progress <= 0.8) return storyArcData.plotPoints[3];
+      return storyArcData.plotPoints[4];
+    })();
     
     // Create a style guide based on genres
     imageStyleGuidance = genres ? createStyleGuidance(genres) : "";
     
     // Build story context from history if available
     if (storyHistory && storyHistory.length > 0) {
-      storyContext = "Previous story context: \n";
-      storyHistory.forEach((item: any, index: number) => {
-        if (item.toReturnItems && item.toReturnItems.thisFrameNarratorPrompt) {
-          storyContext += `\nScene ${index + 1}: ${item.toReturnItems.thisFrameNarratorPrompt}\n`;
-          
-          // If there was a selection made, include that too
-          if (index < storyHistory.length - 1 && storyHistory[index + 1].selectedButtonText) {
-            storyContext += `User chose: ${storyHistory[index + 1].selectedButtonText}\n`;
-          }
-        }
+      storyContext = "Previous story context:\n";
+      storyHistory.forEach((step, index) => {
+        storyContext += `Step ${index + 1}: ${step.narratorPrompt}\nChosen action: ${step.selectedButtonText}\n\n`;
       });
     }
     
@@ -129,7 +196,7 @@ export async function POST(request: Request) {
       content: [
         {
           type: "text",
-          text: narratorPrompt
+          text: narratorPrompt || ""
         }
       ]
     });
@@ -140,7 +207,7 @@ export async function POST(request: Request) {
       content: [
         {
           type: "text",
-          text: oldGeneratedImagePrompt
+          text: oldGeneratedImagePrompt || ""
         }
       ]
     });
@@ -158,6 +225,75 @@ export async function POST(request: Request) {
       });
     }
     
+    // Generate the next part of the story
+    const result = await generateText({
+      model: google("gemini-2.0-flash-001"),
+      messages: messages,
+      toolChoice: "required",
+      tools: {
+        nextSteps: {
+          type: "function",
+          description: "The next 4 options for the story",
+          parameters: z.object({
+            thisFrameImagePrompt: z.string(),
+            thisFrameNarratorPrompt: z.string(),
+            nextOptions: z.array(z.object({
+              stepButtonText: z.string(),
+              stepButtonImagePrompt: z.string(),
+            })),
+          }),
+        }
+      },
+    });
+
+    if (!result.toolCalls?.length) {
+      return NextResponse.json({
+        error: "No tool calls returned"
+      }, { status: 500 });
+    }
+
+    const toolCalls = result.toolCalls as ToolCallResponse[];
+    const nextStepsCall = toolCalls.find(call => call.toolName === "nextSteps");
+    
+    if (!nextStepsCall) {
+      return NextResponse.json({
+        error: "Failed to generate story response"
+      }, { status: 500 });
+    }
+
+    toReturnItems = nextStepsCall.args;
+    currentEmotionalTone = currentPhase.emotionalTone;
+    const narrationStyle = {
+      instructions: `Speak in a ${currentEmotionalTone} tone that matches the current story phase.`
+    };
+
+    // Generate image for the new frame
+    const enhancedImagePrompt = `Generate this hypothetical image: ${toReturnItems.thisFrameImagePrompt}. 
+    ${imageStyleGuidance}
+    The image MUST be in landscape (16:9) ratio with a cinematic quality similar to Studio Ghibli films.`;
+
+    const imageResult = await generateText({
+      providerOptions: {
+        google: { responseModalities: ["TEXT", "IMAGE"] },
+      },
+      model: google("gemini-2.0-flash-exp"),
+      messages: [
+        {
+          role: "user",
+          content: enhancedImagePrompt,
+        },
+      ],
+    });
+
+    if (imageResult.files && imageResult.files.length > 0) {
+      for (const file of imageResult.files) {
+        if (file.mimeType.startsWith("image/")) {
+          base64Image = `data:${file.mimeType};base64,${file.base64}`;
+          break;
+        }
+      }
+    }
+
     // Finally add the instructions to continue the story with context
     messages.push({
       role: "user",
@@ -194,14 +330,33 @@ export async function POST(request: Request) {
     Keep narrator prompts concise (tweet-length) yet immersive, focusing on action and stakes rather than description.
     
     HIDDEN STORY ARC (never reveal this to the user, but use it to guide the story direction):
-    ${storyArc || "Generate the story arc"}
+    ${existingStoryArc || "Generate the story arc"}
     `
         }
       ]
     });
     
+    if (!toReturnItems) {
+      return NextResponse.json({
+        error: "Failed to generate story response"
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      toReturnItems: {
+        thisFrameImagePrompt: toReturnItems.thisFrameImagePrompt,
+        thisFrameNarratorPrompt: toReturnItems.thisFrameNarratorPrompt,
+        nextOptions: toReturnItems.nextOptions,
+        narrationStyle
+      },
+      base64Image,
+      styleGuidance: imageStyleGuidance,
+      storyArc: storyArc,
+    });
   } else {
-    return new Response(JSON.stringify({ error: "Invalid input format" }), {
+    return NextResponse.json({
+      error: "Invalid input format"
+    }, {
       status: 400,
       headers: { "Content-Type": "application/json" }
     });
@@ -209,7 +364,7 @@ export async function POST(request: Request) {
 
   const result = await generateText({
     model: google("gemini-2.5-pro-exp-03-25"),
-    messages: messages as CoreMessage[],
+    messages: messages,
     toolChoice: "required",
     tools: {
       nextSteps: {
@@ -241,7 +396,7 @@ export async function POST(request: Request) {
 
   let imagePrompt = "";
 
-  const toReturnItems = result.toolCalls.map((toolCall) => {
+  const parsedResult = result.toolCalls.map((toolCall) => {
     if (toolCall.toolName === "nextSteps") {
       imagePrompt = toolCall.args.thisFrameImagePrompt;
       console.log("Image prompt:", imagePrompt);
@@ -270,8 +425,6 @@ export async function POST(request: Request) {
   });
   console.log("Image result:", imageResult);
 
-  let base64Image = ""
-
   if (imageResult.files && imageResult.files.length > 0) {
     for (const file of imageResult.files) {
       if (file.mimeType.startsWith("image/")) {
@@ -281,21 +434,30 @@ export async function POST(request: Request) {
     }
   }
 
-  return new Response(
-    JSON.stringify({
-      toReturnItems,
-      base64Image,
-      styleGuidance: imageStyleGuidance,
-      storyArc: storyArc, // Pass the hidden story arc for continuity
-      toneAccordingToGenres
-    }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  );
+  if (!parsedResult) {
+    return NextResponse.json({
+      error: "Failed to generate story response"
+    }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    toReturnItems: {
+      thisFrameImagePrompt: parsedResult.thisFrameImagePrompt,
+      thisFrameNarratorPrompt: parsedResult.thisFrameNarratorPrompt,
+      nextOptions: parsedResult.nextOptions,
+      narrationStyle: {
+        instructions: `Speak in a ${currentEmotionalTone} tone that matches the current story phase.`
+      }
+    },
+    base64Image,
+    styleGuidance: imageStyleGuidance,
+    storyArc: storyArc, // Pass the hidden story arc for continuity
+  }, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 }
 
 const getToneFromGenres = (genres: string[]): string => {

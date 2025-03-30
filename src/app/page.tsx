@@ -14,7 +14,7 @@ import actionImg from "@/images/Action.png";
 import sciFiImg from "@/images/SciFi.png";
 import horrorImg from "@/images/Horror.png";
 import romanceImg from "@/images/Romance.png";
-import { ResponseData } from "@/types";
+import type { ResponseData } from "@/types";
 
 export default function Home() {
   const [images, setImages] = useState<string[] | null>(null);
