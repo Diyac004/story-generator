@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { ResponseData } from "@/types";
 
 // Animation variants for the image
 const animationVariants = [
@@ -13,13 +14,23 @@ const animationVariants = [
     // Subtle floating effect
     initial: { y: 0 },
     animate: { y: -10 },
-    transition: { duration: 4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" },
+    transition: {
+      duration: 4,
+      repeat: Infinity,
+      repeatType: "reverse",
+      ease: "easeInOut",
+    },
   },
   {
     // Gentle fade in with slight rotation
     initial: { opacity: 0.9, rotate: -1 },
     animate: { opacity: 1, rotate: 1 },
-    transition: { duration: 6, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" },
+    transition: {
+      duration: 6,
+      repeat: Infinity,
+      repeatType: "reverse",
+      ease: "easeInOut",
+    },
   },
 ];
 
@@ -32,50 +43,147 @@ type StoryBlockProps = {
   bgImageUrl: string;
   buttons: ButtonType[];
   narratorPrompt: string;
+  onStoryProgress: (nextStepData: any) => void;
+  responseHistory: ResponseData[]
+  currentImagePrompt: string
 };
 
-const StoryBlock: React.FC<StoryBlockProps> = ({ bgImageUrl, buttons, narratorPrompt }) => {
+const StoryBlock: React.FC<StoryBlockProps> = ({
+  bgImageUrl,
+  buttons,
+  narratorPrompt,
+  onStoryProgress,
+  responseHistory,
+  currentImagePrompt,
+}) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
-
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  // Remove audioKey from state since it's causing the loop
+  
+  // Add ref to track if narration has been played
+  const hasPlayedRef = useRef(false);
+  
   // Select a random animation on mount or when bgImageUrl changes
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * animationVariants.length);
     setAnimation(randomIndex);
+    
+    // Reset the played flag when bgImageUrl changes
+    hasPlayedRef.current = false;
   }, [bgImageUrl]);
 
+  // Function to stop the current narration
+  const stopNarration = () => {
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+    }
+  };
+
   // Automatically play narrator audio using the server-side API route
-// Automatically play narrator audio using the server-side API route
-useEffect(() => {
-  const playNarration = async () => {
+  useEffect(() => {
+    // Only proceed if we have a narrator prompt and haven't played it yet
+    if (!narratorPrompt || hasPlayedRef.current) return;
+    
+    const timestamp = Date.now(); // Generate timestamp locally in the effect
+    
+    const playNarration = async () => {
+      try {
+        // Stop any currently playing narration
+        stopNarration();
+        
+        console.log("Sending TTS request with prompt:", narratorPrompt);
+
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache"
+          },
+          body: JSON.stringify({ 
+            narratorPrompt,
+            timestamp // Use local timestamp
+          }),
+        });
+
+        const data = await res.json();
+        console.log("Received TTS response:", data);
+
+        if (data.audioUrl) {
+          // Mark that we've played this narration
+          hasPlayedRef.current = true;
+          
+          console.log("Creating audio with URL:", data.audioUrl);
+          
+          const audio = new Audio(data.audioUrl);
+          setCurrentAudio(audio);
+          
+          // Note: Autoplay may be blocked by browsers unless there's user interaction.
+          try {
+            await audio.play();
+            console.log("Audio playback started");
+          } catch (playError) {
+            console.error("Audio playback failed:", playError);
+            // User might need to interact with page first
+          }
+          
+          // Reset current audio when playback ends
+          audio.onended = () => {
+            setCurrentAudio(null);
+          };
+        }
+      } catch (error) {
+        console.error("Error playing narration:", error);
+      }
+    };
+
+    playNarration();
+  }, [narratorPrompt]); // Remove audioKey from dependencies
+
+  // Add a function to manually trigger narration
+  const triggerNarration = async () => {
+    // Reset the played flag to allow playing again
+    hasPlayedRef.current = false;
+    
+    // Re-run the same effect logic
+    if (!narratorPrompt) return;
+    
+    const timestamp = Date.now();
+    
     try {
-      console.log("Sending TTS request with prompt:", narratorPrompt);
+      stopNarration();
       
       const res = await fetch("/api/tts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ narratorPrompt }),
+        headers: { 
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache"
+        },
+        body: JSON.stringify({ 
+          narratorPrompt,
+          timestamp
+        }),
       });
-      
+
       const data = await res.json();
-      console.log("Received TTS response:", data);
       
       if (data.audioUrl) {
         const audio = new Audio(data.audioUrl);
-        // Note: Autoplay may be blocked by browsers unless there's user interaction.
+        setCurrentAudio(audio);
         await audio.play();
-        console.log("Audio playback started");
+        
+        audio.onended = () => {
+          setCurrentAudio(null);
+        };
       }
     } catch (error) {
       console.error("Error playing narration:", error);
     }
   };
-
-  if (narratorPrompt) {
-    playNarration();
-  }
-}, [narratorPrompt]);
-
 
   const selectedAnimation = animationVariants[animation];
 
@@ -111,9 +219,34 @@ useEffect(() => {
     },
   };
 
-  const handleButtonClick = (index: number) => {
+  const handleButtonClick = async (index: number) => {
     setActiveButton(index);
     // Additional logic on button click if needed
+    const selectedPrompt = buttons[index].stepButtonImagePrompt;
+    const response = await fetch("/api/nextframe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: [
+          ...responseHistory.map(item => ({
+            prompt: item.toReturnItems.thisFrameImagePrompt + " " + item.toReturnItems.thisFrameNarratorPrompt,
+            previousImagePrompt: item.toReturnItems.thisFrameImagePrompt,
+          })),
+          {
+            prompt: selectedPrompt,
+            previousImagePrompt: currentImagePrompt,
+          },
+        ],
+      } as {
+        input: {
+          prompt: string;
+          previousImagePrompt: string;
+        }[];
+      }),
+    });
+    const nextStepData = await response.json();
+
+    onStoryProgress(nextStepData);
   };
 
   return (
@@ -151,7 +284,13 @@ useEffect(() => {
           className="max-h-[80vh] object-contain"
           initial={selectedAnimation.initial}
           animate={selectedAnimation.animate}
-          transition={selectedAnimation.transition}
+          transition={{
+            ...selectedAnimation.transition,
+            repeatType: selectedAnimation.transition.repeatType as
+              | "loop"
+              | "reverse"
+              | "mirror",
+          }}
         />
       </div>
 
@@ -184,9 +323,10 @@ useEffect(() => {
                 : "bg-blue-500/20 border-blue-500/20 hover:bg-blue-600/20"
             }`}
             style={{
-              background: activeButton === index
-                ? "rgba(59, 130, 246, 0.2)"
-                : "rgba(59, 130, 246, 0.1)",
+              background:
+                activeButton === index
+                  ? "rgba(59, 130, 246, 0.2)"
+                  : "rgba(59, 130, 246, 0.1)",
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
               border: "1px solid rgba(59, 130, 246, 0.3)",
@@ -209,6 +349,16 @@ useEffect(() => {
             </motion.span>
           </motion.button>
         ))}
+      </div>
+
+      {/* Add a play/pause button */}
+      <div className="absolute top-4 right-4 z-30">
+        <button
+          onClick={currentAudio ? stopNarration : triggerNarration}
+          className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
+        >
+          {currentAudio ? "Pause Narration" : "Play Narration"}
+        </button>
       </div>
     </div>
   );

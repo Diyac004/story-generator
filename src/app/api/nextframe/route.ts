@@ -45,7 +45,7 @@ export async function POST(request: Request) {
                 "\n\n"
               )} Now, in the SAME STYLE, generate a new prompt for the next image. The prompt should be descriptive, cartoonish / dreamy and in the style of a very well designed Ghibili studio like image. The image should always be landscape (16:9) ratio. ALWAYS CREATE A LANDSCAPE IMAGE. Make sure the image prompts are vivid, detailed, and captivating. The next image prompt should be something like ${
               messages.input[messages.input.length - 1].prompt
-            }.`,
+            }. you MUST SEND 4 NEXT OPTIONS FOR THE STORY!!!!`,
           },
         ],
       },
@@ -54,13 +54,14 @@ export async function POST(request: Request) {
     tools: {
       nextSteps: {
         type: "function",
+        description: "The next 4 options for the story",
         parameters: z.object({
           thisFrameImagePrompt: z
             .string()
-            .describe("prompt for the next image to be generated"),
+            .describe("The image prompt for the first image"),
           thisFrameNarratorPrompt: z
             .string()
-            .describe("the narrator now describes the next scene in detail"),
+            .describe("The narrator prompt for the first image"),
           nextOptions: z
             .array(
               z.object({
@@ -85,7 +86,7 @@ export async function POST(request: Request) {
 
       return m.args;
     }
-  });
+  })[0]
 
   const imageResult = await generateText({
     providerOptions: {
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
   });
   console.log("Image result:", imageResult);
 
-  const base64Image = imageResult.files?.map((file) => file.base64)[0];
+  const base64Image = imageResult.files?.map((file) => `data:${file.mimeType};base64,${file.base64}`)[0];
   return new Response(
     JSON.stringify({
       toReturnItems,

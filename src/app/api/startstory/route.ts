@@ -110,22 +110,16 @@ export async function POST(request: Request) {
   });
   console.log("Image result:", imageResult);
 
-//   if (imageResult.files && imageResult.files.length > 0) {
-//     for (const file of imageResult.files) {
-//       if (file.mimeType.startsWith("image/")) {
+  let base64Image = ""
 
-//         base64Image=  file.base64
+  if (imageResult.files && imageResult.files.length > 0) {
+    for (const file of imageResult.files) {
+      if (file.mimeType.startsWith("image/")) {
 
-//         break
-//       }
-//     }
-//   }
-
-    const base64Image = imageResult.files?.map(file => {
-        if (file.mimeType.startsWith("image/")) return file.base64
-
-        return ""
-    })
+        base64Image= `data:${file.mimeType};base64,${file.base64}`
+      }
+    }
+  }
 
   return new Response(
     JSON.stringify({

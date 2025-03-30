@@ -8,19 +8,33 @@ import { Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-import adventureImg from '@/images/Adventure.png';
-import comedyImg from '@/images/Comedy.png';
-import actionImg from '@/images/Action.png';
-import sciFiImg from '@/images/SciFi.png';
-import horrorImg from '@/images/Horror.png';
-import romanceImg from '@/images/Romance.png';
+import adventureImg from "@/images/Adventure.png";
+import comedyImg from "@/images/Comedy.png";
+import actionImg from "@/images/Action.png";
+import sciFiImg from "@/images/SciFi.png";
+import horrorImg from "@/images/Horror.png";
+import romanceImg from "@/images/Romance.png";
+import { ResponseData } from "@/types";
+
+
 
 export default function Home() {
   const [images, setImages] = useState<string[] | null>(null);
   const [prompt, setPrompt] = useState("");
 
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
+  const [responseData, setResponseData] = useState<ResponseData>();
 
+const [responseHistory,setResponseHistory] = useState<ResponseData[]>([]);
+
+  const handleStoryProgress = async (nextStepData: ResponseData) => {
+    // store the current state of the story in a list
+    setResponseHistory((prevHistory) => [...prevHistory, responseData!]);
+
+    // replace the responseData
+    setResponseData(nextStepData);
+  };
+  
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -35,17 +49,6 @@ export default function Home() {
     }
   };
 
-  const [responseData, setResponseData] = useState<{
-    toReturnItems: {
-      thisFrameImagePrompt: string;
-      thisFrameNarratorPrompt: string;
-      nextOptions: {
-          stepButtonText: string;
-          stepButtonImagePrompt: string;
-      }[];
-    }
-    base64Image: string;
-  }>();
 
   useEffect(() => {
     console.log("Response data changed:", responseData);
@@ -72,8 +75,10 @@ export default function Home() {
                 Choose your own Adventure
               </h1>
               <div className="backdrop-blur-sm bg-white/30 p-4 rounded-lg w-5xl shadow-lg flex flex-col gap-4">
-                <h3 className="text-center text-2xl font-semibold text-gray-800"
-                style={{ fontFamily: "'Freckle Face', cursive" }}>
+                <h3
+                  className="text-center text-2xl font-semibold text-gray-800"
+                  style={{ fontFamily: "'Freckle Face', cursive" }}
+                >
                   {" "}
                   Select a genre
                 </h3>
@@ -119,12 +124,13 @@ export default function Home() {
 
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4 relative pb-6">
-                    <h2 className="text-2xl font-semibold text-gray-800"
-                    style={{ fontFamily: "'Freckle Face', cursive" }}>
+                    <h2
+                      className="text-2xl font-semibold text-gray-800"
+                      style={{ fontFamily: "'Freckle Face', cursive" }}
+                    >
                       Upload an Image
                     </h2>
-                    <p className="text-sm text-black-500"
-                    >
+                    <p className="text-sm text-black-500">
                       Upload an image to inspire your story
                     </p>
 
@@ -162,10 +168,13 @@ export default function Home() {
                         </label>
                       )}
                     </div>
-                    <label
-                      htmlFor="image-upload"
-                    >
-                      <Button  className="absolute bottom-0 right-24 bg-white/80" type="button" variant="outline" size="sm">
+                    <label htmlFor="image-upload">
+                      <Button
+                        className="absolute bottom-0 right-24 bg-white/80"
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                      >
                         <Input
                           id="image-upload"
                           type="file"
@@ -189,8 +198,10 @@ export default function Home() {
                   </div>
 
                   <div className="space-y-4 relative pb-6">
-                    <h2 className="text-2xl font-semibold text-gray-800"
-                    style={{ fontFamily: "'Freckle Face', cursive" }}>
+                    <h2
+                      className="text-2xl font-semibold text-gray-800"
+                      style={{ fontFamily: "'Freckle Face', cursive" }}
+                    >
                       Or Enter a Prompt
                     </h2>
                     <p className="text-sm text-black-500">
@@ -244,6 +255,9 @@ export default function Home() {
             bgImageUrl={responseData.base64Image}
             buttons={responseData.toReturnItems.nextOptions}
             narratorPrompt={responseData.toReturnItems.thisFrameNarratorPrompt}
+            onStoryProgress={handleStoryProgress}
+            responseHistory={responseHistory}
+            currentImagePrompt={responseData.toReturnItems.thisFrameImagePrompt}
           />
         </>
       )}

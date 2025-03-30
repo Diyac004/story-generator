@@ -9,10 +9,13 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
+  const { narratorPrompt, timestamp } = await request.json();
+  
+  // Log the timestamp to see if it's being passed correctly
+  console.log("TTS request with timestamp:", timestamp);
+  
   try {
-    const { narratorPrompt } = await req.json();
-
     if (!narratorPrompt) {
       return NextResponse.json({ error: "Missing narratorPrompt" }, { status: 400 });
     }
@@ -30,13 +33,21 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await response.arrayBuffer());
 
     // Save the file locally (or upload it somewhere)
-    const speechFile = path.resolve("./public/speech.mp3");
+    const speechFile = path.resolve(`./public/speech_${timestamp}.mp3`);
     await fs.promises.writeFile(speechFile, buffer);
 
     // Return the URL/path to the saved file.
-    return NextResponse.json({ audioUrl: "/speech.mp3" });
+    return NextResponse.json({ 
+      audioUrl: `/speech_${timestamp}.mp3`
+    }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error("TTS generation error:", error);
-    return NextResponse.json({ error: "TTS generation failed" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to generate audio" }, { status: 500 });
   }
 }
