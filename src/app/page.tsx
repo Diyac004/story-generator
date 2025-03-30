@@ -8,6 +8,13 @@ import { Upload } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+import adventureImg from '@/images/Adventure.png';
+import comedyImg from '@/images/Comedy.png';
+import actionImg from '@/images/Action.png';
+import sciFiImg from '@/images/SciFi.png';
+import horrorImg from '@/images/Horror.png';
+import romanceImg from '@/images/Romance.png';
+
 export default function Home() {
   const [images, setImages] = useState<string[] | null>(null);
   const [prompt, setPrompt] = useState("");
@@ -72,37 +79,38 @@ export default function Home() {
                 </h3>
                 <div className="flex w-full justify-between items-center gap-2 overflow-x-auto">
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    bgImageUrl={adventureImg.src}
                     text="Adventure"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
                   />
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    bgImageUrl={horrorImg.src}
                     text="Horror"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
                   />
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    // Note: You don't have Romance.png, so use another image or add it
+                    bgImageUrl={romanceImg.src}
                     text="Romance"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
                   />
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    bgImageUrl={comedyImg.src}
                     text="Comedy"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
                   />
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    bgImageUrl={sciFiImg.src}
                     text="Science Fiction"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
                   />
                   <CategoryCard
-                    bgImageUrl="https://pageshots.supermemory.ai/image.webp"
+                    bgImageUrl={actionImg.src}
                     text="Action"
                     setGenres={setSelectedGenres}
                     currentGenres={selectedGenres}
