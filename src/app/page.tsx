@@ -23,6 +23,7 @@ export default function Home() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [responseData, setResponseData] = useState<ResponseData>();
   const [responseHistory, setResponseHistory] = useState<ResponseData[]>([]);
+  const [storyArc, setStoryArc] = useState<string | null>(null);
 
   // Store initial genres to maintain story consistency
   const [storyGenres, setStoryGenres] = useState<string[]>([]);
@@ -38,18 +39,18 @@ export default function Home() {
     if (responseHistory.length > 0 || responseData) {
       nextStepData.visualContinuityContext = {
         firstSceneImagePrompt: responseHistory.length > 0 
-          ? responseHistory[0].toReturnItems.thisFrameImagePrompt 
-          : responseData?.toReturnItems.thisFrameImagePrompt,
+          ? responseHistory[0].toReturnItems.thisFrameImagePrompt! 
+          : responseData?.toReturnItems.thisFrameImagePrompt!,
         previousScenes: [
           ...(responseHistory.map(item => ({
-            imagePrompt: item.toReturnItems.thisFrameImagePrompt,
-            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt
+            imagePrompt: item.toReturnItems.thisFrameImagePrompt!,
+            narratorPrompt: item.toReturnItems.thisFrameNarratorPrompt!
           }))),
-          responseData ? {
+          responseData && {
             imagePrompt: responseData.toReturnItems.thisFrameImagePrompt,
             narratorPrompt: responseData.toReturnItems.thisFrameNarratorPrompt
-          } : null
-        ].filter(Boolean)
+          }
+        ].filter(Boolean) as { imagePrompt: string; narratorPrompt: string; }[]
       };
     }
     
@@ -258,7 +259,7 @@ export default function Home() {
                             genres: selectedGenres,
                           }),
                         })
-                          .then((response) => response.json())
+                          .then((response) => response.json() as unknown as ResponseData)
                           .then((data) => {
                             console.log("Response data:", data);
                             // Store genres in the response data for future reference
@@ -268,6 +269,7 @@ export default function Home() {
                             setImages(null);
                             setPrompt("");
                             setSelectedGenres([]);
+                            setStoryArc(data.storyArc || null)
                           });
                       }}
                       disabled={!selectedGenres.length}
@@ -291,6 +293,7 @@ export default function Home() {
             currentImagePrompt={responseData.toReturnItems.thisFrameImagePrompt}
             genres={storyGenres} // Pass the genres to maintain consistency
             initialPrompt={storyPrompt} // Pass the initial prompt
+            storyArc={storyArc || undefined}
           />
         </>
       )}

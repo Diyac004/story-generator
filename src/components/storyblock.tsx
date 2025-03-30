@@ -48,6 +48,7 @@ type StoryBlockProps = {
   currentImagePrompt: string;
   genres: string[]; // Add genres prop
   initialPrompt?: string; // Add initial prompt prop
+  storyArc?: string; // Add story arc prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -59,6 +60,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   currentImagePrompt,
   genres,
   initialPrompt,
+  storyArc
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
@@ -238,7 +240,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         // genres: genres,
         initialPrompt: initialPrompt,
         // Pass the story history for better context
-        storyHistory: responseHistory
+        storyHistory: responseHistory,
+        storyArc: storyArc,
       }),
     });
     
