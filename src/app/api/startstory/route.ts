@@ -2,7 +2,7 @@ import { google } from "@ai-sdk/google";
 import type { CoreMessage, FilePart } from "ai";
 import { generateText } from "ai";
 import { NextResponse } from "next/server";
-import type { ResponseData, StoryArc, StoryPhase } from "@/types";
+import type { StoryArc, StoryPhase } from "@/types";
 import { z } from "zod";
 
 type NextStepsResponse = {
@@ -45,6 +45,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   let currentEmotionalTone = "neutral"; // Default tone
   let toReturnItems: NextStepsResponse | null = null;
   let base64Image = "";
+  let toneAccordingToGenres = "";
   
   // Check if the input contains genres (new story) or narratorPrompt (continuation)
   if ('genres' in inputData && inputData.genres) {
@@ -54,6 +55,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     
     // Create a style guide based on genres
     imageStyleGuidance = createStyleGuidance(genres);
+
+    toneAccordingToGenres = getToneFromGenres(genres);
     
     const imageObjects: FilePart[] =
       images?.map((image: string) => ({
@@ -109,22 +112,27 @@ export async function POST(request: Request): Promise<NextResponse> {
       content: [
         {
           type: "text",
-          text: `Create an immersive introduction for a story based on the selected genres: ${genres.join(
+          text: `Create an immersive but concise introduction for a story based on the selected genres: ${genres.join(
             ", "
-          )}. The introduction should capture the reader's imagination and set up a scenario where the reader becomes the protagonist.
+          )}. Immediately establish an engaging scenario with clear stakes where the reader becomes the protagonist.
           
-          Make the story vivid, emotionally engaging, and create a sense of intrigue or mystery. Include sensory details and establish a unique atmosphere.
+          Focus on action and forward momentum. Avoid lengthy descriptions - use vivid but efficient language to set the scene. Create immediate tension or intrigue that demands action.
           
           You should also create a prompt for the image generation model. You MUST run the 'nextSteps' tool.
           
-          The next steps should be "actions" that the reader (as the protagonist) can take. The story should place the reader in an interesting situation with meaningful choices.
+          The next steps should be impactful "actions" that significantly affect the story's direction. Each option should promise clear and different consequences.
           
-          IMPORTANT: Make sure each of the 4 options is distinctly different and represents a meaningful choice.
+          CRITICAL: Make each of the 4 options distinctly different and ensure they all drive the plot forward in meaningful ways. NO passive options.
+          BUT ALWAYS INCLUDE 4 OPTIONS. NO MATTER WHAT. 4 GOOD OPTIONS SHOULD ALWAY SBE THERE.
           
           The image prompt should be descriptive, detailed, and in the style of a Studio Ghibli film - dreamlike, imaginative, with rich colors and beautiful landscapes. The image MUST be in landscape (16:9) ratio.
           
           The next image prompts should maintain visual continuity with the first image while adapting to the new story direction.
           
+            You must generate the narratorprompt. always.
+
+            never include the studio ghibili  16:9 stuff in the narrator prompt
+
           HIDDEN STORY ARC (never reveal this to the user, but use it to inform the story direction):
           ${storyArc}
           
@@ -225,19 +233,51 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Generate the next part of the story
     const result = await generateText({
       model: google("gemini-2.0-flash-001"),
-      messages: messages,
+      messages: [
+        ...messages,
+        {
+          role: "user" as const,
+          content: `You are crafting the next scene in an immersive story. Follow these critical rules:
+
+1. NARRATOR PROMPT:
+- Create a vivid, atmospheric description that heightens tension
+- Focus on immediate sensory details and emotional impact
+- Keep the tone ${currentPhase.emotionalTone} as per the current story phase
+- Length: 2-3 impactful sentences maximum
+
+2. ACTION CHOICES:
+- EXACTLY 4 distinct options - no exceptions
+- Each must be an active choice with clear consequences
+- Make choices dramatically different from each other
+- Ensure each choice aligns with the current story phase: ${currentPhase.description}
+- NO passive or investigative options - focus on decisive actions
+
+3. IMAGE PROMPTS:
+- Maintain visual continuity with previous scenes
+- Focus on the most dramatic or tense element of each scene
+- Keep consistent atmosphere while varying the scenes
+
+Previous context to maintain continuity:
+${storyContext}
+
+Story phase guidance (never reveal to user):
+${currentPhase.description}
+
+${avoidOptions ? `\nAvoid these previous options:\n${avoidOptions}` : ''}`
+        }
+      ],
       toolChoice: "required",
       tools: {
         nextSteps: {
           type: "function",
-          description: "The next 4 options for the story",
+          description: "Generate the next story scene with exactly 4 impactful choices",
           parameters: z.object({
             thisFrameImagePrompt: z.string(),
             thisFrameNarratorPrompt: z.string(),
             nextOptions: z.array(z.object({
               stepButtonText: z.string(),
               stepButtonImagePrompt: z.string(),
-            })),
+            })).length(4),
           }),
         }
       },
@@ -297,24 +337,40 @@ export async function POST(request: Request): Promise<NextResponse> {
       content: [
         {
           type: "text",
-          text: `Continue the adventure from where we left off. Create the next exciting chapter of the narrative that logically builds on previous events. You MUST run the 'nextSteps' tool.
+          text: `You are continuing a horror story. Here is the current state:
+            
+            Current image description: ${inputData.oldGeneratedImagePrompt}
+            Current narrator text: ${inputData.narratorPrompt}
+            Initial prompt: ${inputData.initialPrompt}
+            
+            HIDDEN STORY ARC (never reveal this to the user, but use it to inform the story direction):
+            ${inputData.storyArc}
+
+            Create the next scene of this story. You must:
+            1. Generate a vivid narrator prompt that describes what happens next in a suspenseful, atmospheric way
+            2. Create 4 distinct choices for what the protagonist could do next
+            3. For each choice, create a matching image prompt that maintains visual continuity
+            
+            Your response must follow this exact format:
+            1. A narrator prompt that builds tension and atmosphere
+            2. Exactly 4 distinct action choices that meaningfully impact the story
+            3. Each choice must have a matching image prompt that maintains visual continuity
+            
+            Remember:
+    - Keep the horror atmosphere consistent
+    - Make each option distinctly different 
+    - Avoid passive or "safe" options
+    - Build upon previous choices without getting stuck
+    - Move the plot forward in unique ways
     
-    ${storyContext}
+    It should always be 4 distinct options no matter what.
     
-    ${initialPrompt ? `Remember that this adventure revolves around: ${initialPrompt}` : ''}
-    ${genres ? `Maintain the tone and elements appropriate for these genres: ${genres.join(', ')}` : ''}
+    these have already been asked, so no need to ask it again now. ${avoidOptions}
+
+    never include the studio ghibili  16:9 stuff in the narrator prompt
+    You should always send 4 interesting options. ALWAYS.
     
-    Craft an engaging, fast-paced continuation that moves the plot forward with minimal repetition. Present four distinct and fresh choices for the protagonist—each option should open a unique path and propel the story into new directions.
-    
-    ${avoidOptions}
-    
-    Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.
-    
-    Keep narrator prompts concise (tweet-length) yet immersive.
-    
-    HIDDEN STORY ARC (never reveal this to the user, but use it to guide the story direction):
-    ${existingStoryArc || "Generate the story arc"}
-    `
+    Generate a detailed image prompt in the signature Studio Ghibli style. The image MUST be in a 16:9 landscape ratio, ensuring visual continuity with previous scenes while vividly representing this new chapter. Ensure that character appearances, environments, color palettes, and overall visual style remain consistent.`
         }
       ]
     });
@@ -435,6 +491,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     base64Image,
     styleGuidance: imageStyleGuidance,
     storyArc: storyArc, // Pass the hidden story arc for continuity
+    toneAccordingToGenres
   }, {
     status: 200,
     headers: {
@@ -442,6 +499,41 @@ export async function POST(request: Request): Promise<NextResponse> {
     },
   });
 }
+
+const getToneFromGenres = (genres: string[]): string => {
+  // voice according to the genres
+  let tone = "";
+  
+  // Convert genres to lowercase for case-insensitive matching
+  const lowerGenres = genres.map(g => g.toLowerCase());
+
+  if (lowerGenres.includes("adventure")) {
+    tone += "Create an epic, expansive landscape with a sense of exploration and wonder. ";
+  }
+
+  if (lowerGenres.includes("horror")) {
+    tone += "Use muted colors, shadows, and create an eerie, unsettling atmosphere while maintaining the Ghibli aesthetic. ";
+  }
+
+  if (lowerGenres.includes("romance")) {
+    tone += "Include warm, soft lighting with delicate details and intimate framing. ";
+  }
+
+  if (lowerGenres.includes("comedy")) {
+    tone += "Use bright, vibrant colors with exaggerated, playful expressions and visual humor. ";
+  }
+
+  if (lowerGenres.includes("science fiction")) {
+    tone += "Blend futuristic elements with organic shapes, unusual lighting, and fantastical technology. ";
+  }
+
+  if (lowerGenres.includes("action")) {
+    tone += "Create dynamic composition with a sense of motion, energy and tension. ";
+  }
+
+  return tone;
+}
+
 
 // Helper function to create style guidance based on genres
 function createStyleGuidance(genres: string[]): string {

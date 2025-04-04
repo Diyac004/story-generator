@@ -50,6 +50,7 @@ type StoryBlockProps = {
   genres: string[]; // Add genres prop
   initialPrompt?: string; // Add initial prompt prop
   storyArc?: string; // Add story arc prop
+  setStoryArc: (arc: string) => void; // Add setStoryArc prop
 };
 
 const StoryBlock: React.FC<StoryBlockProps> = ({
@@ -61,11 +62,13 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   currentImagePrompt,
   genres,
   initialPrompt,
-  storyArc
+  storyArc,
+  setStoryArc
 }) => {
   const [animation, setAnimation] = useState(0);
   const [activeButton, setActiveButton] = useState<number | null>(null);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [isProgressing, setIsProgressing] = useState<number | null>(null);
   // Remove audioKey from state since it's causing the loop
   
   // Add ref to track if narration has been played
@@ -105,6 +108,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         
         console.log("Sending TTS request with prompt:", narratorPrompt);
 
+        const tone = localStorage.getItem("tone");
+
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { 
@@ -114,7 +119,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
           },
           body: JSON.stringify({ 
             narratorPrompt,
-            timestamp // Use local timestamp
+            timestamp, // Use local timestamp
+            tone
           }),
         });
 
@@ -164,6 +170,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
     
     try {
       stopNarration();
+
+      const tone = localStorage.getItem("tone");
       
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -174,7 +182,8 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
         },
         body: JSON.stringify({ 
           narratorPrompt,
-          timestamp
+          timestamp,
+          tone
         }),
       });
 
@@ -193,6 +202,55 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       console.error("Error playing narration:", error);
     }
   };
+
+  const [bgMusic, setBgMusic] = useState<HTMLAudioElement | null>(null);
+  const [isMusicMuted, setIsMusicMuted] = useState(false);
+
+  // Handle background music based on genre
+  useEffect(() => {
+    const audioUrl = genres.some(genre => genre.toLowerCase() === 'horror') 
+      ? "https://recording.dhravya.dev/Creepy%20Ominous%20Horror%20Suspense%20Background%20(Scary%20Instrumental%20Music).mp3"
+      : "https://pageshots.supermemory.ai/Suzume%20no%20TojimariSuzumeTheme%20Song.mp3";
+
+    if (!bgMusic) {
+
+      const audio = new Audio(audioUrl);
+      audio.loop = true;
+      audio.volume = 0.6;
+      audio.muted = isMusicMuted;
+      setBgMusic(audio);
+      if (!isMusicMuted) {
+        audio.play().catch(console.error);
+      }
+    } else if (bgMusic.src !== audioUrl) {
+      // If genre changes, update the music
+      const wasPlaying = !bgMusic.paused && !isMusicMuted;
+      bgMusic.src = audioUrl;
+      if (wasPlaying) {
+        bgMusic.play().catch(console.error);
+      }
+    }
+
+    return () => {
+      if (bgMusic) {
+        bgMusic.pause();
+        bgMusic.currentTime = 0;
+        setBgMusic(null);
+      }
+    };
+  }, [genres, isMusicMuted]);
+
+  // Update music mute state
+  useEffect(() => {
+    if (bgMusic) {
+      bgMusic.muted = isMusicMuted;
+      if (!isMusicMuted) {
+        bgMusic.play().catch(console.error);
+      } else {
+        bgMusic.pause();
+      }
+    }
+  }, [isMusicMuted]);
 
   const selectedAnimation = animationVariants[animation];
 
@@ -229,32 +287,43 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
   };
 
   const handleButtonClick = async (index: number) => {
+    if (isProgressing !== null) return; // Prevent multiple clicks while loading
+    
     setActiveButton(index);
-    const selectedPrompt = buttons[index].stepButtonImagePrompt;
+    setIsProgressing(index);
     
-    // For story continuation, we'll send narratorPrompt and the current image prompt
-    const response = await fetch("/api/startstory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        narratorPrompt: `${selectedPrompt} this is ${genres.join(", ")} genre.`,
-        oldGeneratedImagePrompt: currentImagePrompt,
-        // Include original story genres and prompt for continuity
-        // genres: genres,
-        initialPrompt: initialPrompt,
-        // Pass the story history for better context
-        storyHistory: responseHistory,
-        storyArc
-      }),
-    });
-    
-    const nextStepData = await response.json();
-    
-    // Maintain genre information
-    nextStepData.genres = genres;
-    nextStepData.initialPrompt = initialPrompt;
-    
-    onStoryProgress(nextStepData);
+    try {
+      const selectedPrompt = buttons[index].stepButtonImagePrompt;
+
+      const stArc = storyArc?.length ? storyArc : window.localStorage.getItem("storyArc")
+      
+      // For story continuation, we'll send narratorPrompt and the current image prompt
+      const response = await fetch("/api/startstory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          narratorPrompt: selectedPrompt + " " + `this is ${genres.join(", ")} genre.`,
+          oldGeneratedImagePrompt: currentImagePrompt,
+          initialPrompt: initialPrompt + " " + "The user clicked on " + buttons[index].stepButtonImagePrompt,
+          storyHistory: responseHistory,
+          storyArc: stArc,
+        }),
+      });
+      
+      const nextStepData = await response.json();
+      
+      // Maintain genre information
+      nextStepData.genres = genres;
+      nextStepData.initialPrompt = initialPrompt;
+
+      setStoryArc(nextStepData.storyArc || "");
+      
+      onStoryProgress(nextStepData);
+    } catch (error) {
+      console.error("Error progressing story:", error);
+    } finally {
+      setIsProgressing(null);
+    }
   };
 
   return (
@@ -304,7 +373,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
 
       {/* Narrator prompt with glass morphism styling */}
       <div
-        className="absolute top-4 left-4 p-4 rounded-md shadow-lg max-w-xs z-20"
+        className="absolute top-4 left-[11%] p-4 rounded-md shadow-lg max-w-[80vw] -translate-x-1/2 z-20"
         style={{
           background: "rgba(0, 0, 0, 0.5)",
           backdropFilter: "blur(10px)",
@@ -321,7 +390,7 @@ const StoryBlock: React.FC<StoryBlockProps> = ({
       </div>
 
       {/* Interactive buttons */}
-      <div className="grid grid-cols-2 gap-4 mt-6 mb-6 absolute z-20 w-full max-w-lg px-4">
+      <div className="grid grid-cols-4 gap-4 mt-6 mb-6 absolute z-20 w-full px-4">
         {buttons.map((button, index) => (
           <motion.button
             key={`btn-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
@@ -339,13 +408,15 @@ index}`}
               backdropFilter: "blur(10px)",
               WebkitBackdropFilter: "blur(10px)",
               border: "1px solid rgba(59, 130, 246, 0.3)",
+              cursor: isProgressing !== null ? "not-allowed" : "pointer",
             }}
             variants={buttonVariants}
             initial="initial"
-            whileHover="hover"
-            whileTap="tap"
+            whileHover={isProgressing === null ? "hover" : "initial"}
+            whileTap={isProgressing === null ? "tap" : "initial"}
             animate={activeButton === index ? "active" : "initial"}
             onClick={() => handleButtonClick(index)}
+            disabled={isProgressing !== null}
           >
             <motion.span
               initial={{ opacity: 0.9 }}
@@ -354,7 +425,7 @@ index}`}
               className="font-bold text-base md:text-lg tracking-tight leading-tight"
               style={{ fontFamily: "'Comic Neue', cursive" }}
             >
-              {button.stepButtonText}
+              {isProgressing === index ? "Loading..." : button.stepButtonText}
             </motion.span>
           </motion.button>
         ))}
@@ -368,6 +439,16 @@ index}`}
           className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
         >
           {currentAudio ? "Pause Narration" : "Play Narration"}
+        </button>
+      </div>
+
+      {/* Add music controls */}
+      <div className="absolute top-16 right-4 z-30">
+        <button
+          onClick={() => setIsMusicMuted(!isMusicMuted)}
+          className="bg-white/30 backdrop-blur-md p-2 rounded-full hover:bg-white/50"
+        >
+          {isMusicMuted ? "Play Music" : "Mute Music"}
         </button>
       </div>
 
